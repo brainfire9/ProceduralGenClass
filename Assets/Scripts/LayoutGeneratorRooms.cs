@@ -13,7 +13,8 @@ public class NewBehaviourScript : MonoBehaviour
     [SerializeField] int roomWidthMax = 5;
     [SerializeField] int roomLengthMin = 3;
     [SerializeField] int roomLengthMax = 5;
-
+    [SerializeField] int hallwayLengthMin = 3;
+    [SerializeField] int hallwayLengthMax = 7;
     [SerializeField] GameObject levelLayoutDisplay;
     [SerializeField] List<Hallway> openDoorways;
     
@@ -33,17 +34,11 @@ public class NewBehaviourScript : MonoBehaviour
         hallways.ForEach(h => openDoorways.Add(h));
         level.AddRoom(room);
 
-        Hallway selectedEntryWay = openDoorways[random.Next(openDoorways.Count)];
-        Hallway selectedExit = SelectHallwayCandidate(new RectInt(0,0,5,7), selectedEntryWay);
-        Debug.Log(selectedExit.StartPosition);
-        Debug.Log(selectedExit.StartDirection);
-        Vector2Int roomCandidatePosition = CalculateRoomPosition(selectedEntryWay, 5, 7, 3, selectedExit.StartPosition);
-        Room secondRoom = new Room(new RectInt(roomCandidatePosition.x, roomCandidatePosition.y, 5, 7));
-        selectedEntryWay.EndRoom = secondRoom;
-        selectedEntryWay.EndPosition = selectedExit.StartPosition;
+        Hallway selectedEntryway = openDoorways[random.Next(openDoorways.Count)];
+        Room secondRoom = ConstructAdjacentRoom(selectedEntryway); 
         level.AddRoom(secondRoom);
-        level.AddHallway(selectedEntryWay);
-        DrawLayout(selectedEntryWay, roomRect);
+        level.AddHallway(selectedEntryway);
+        DrawLayout(selectedEntryway, roomRect);
     }
 
     RectInt GetStartRoomRect() {
@@ -116,6 +111,28 @@ public class NewBehaviourScript : MonoBehaviour
                 break;
         }
         return roomPosition;
+    }
+
+    private Room ConstructAdjacentRoom(Hallway selectedEntryway)
+    {
+        RectInt roomCandidateRect = new RectInt 
+        {
+            width = random.Next(roomWidthMin, roomWidthMax),
+            height = random.Next(roomLengthMin, roomLengthMax)
+        };
+        Hallway selectedExit = SelectHallwayCandidate(roomCandidateRect, selectedEntryway);
+        if (selectedExit == null) 
+        {
+            return null;
+        }
+        
+        int hallwayLength = random.Next(hallwayLengthMin, hallwayLengthMax);
+        Vector2Int roomCandidatePosition = CalculateRoomPosition(selectedEntryway, roomCandidateRect.width, roomCandidateRect.height, hallwayLength, selectedExit.StartPosition);
+        roomCandidateRect.position = roomCandidatePosition;
+        Room newroom = new Room(roomCandidateRect);
+        selectedEntryway.EndRoom = newroom;
+        selectedEntryway.EndPosition = selectedExit.StartPosition;
+        return newroom;
     }
 
 }
