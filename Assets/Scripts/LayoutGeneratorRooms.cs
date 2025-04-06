@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.VisualScripting;
 
 public class NewBehaviourScript : MonoBehaviour
 {
@@ -36,7 +37,12 @@ public class NewBehaviourScript : MonoBehaviour
         Hallway selectedExit = SelectHallwayCandidate(new RectInt(0,0,5,7), selectedEntryWay);
         Debug.Log(selectedExit.StartPosition);
         Debug.Log(selectedExit.StartDirection);
-
+        Vector2Int roomCandidatePosition = CalculateRoomPosition(selectedEntryWay, 5, 7, 3, selectedExit.StartPosition);
+        Room secondRoom = new Room(new RectInt(roomCandidatePosition.x, roomCandidatePosition.y, 5, 7));
+        selectedEntryWay.EndRoom = secondRoom;
+        selectedEntryWay.EndPosition = selectedExit.StartPosition;
+        level.AddRoom(secondRoom);
+        level.AddHallway(selectedEntryWay);
         DrawLayout(selectedEntryWay, roomRect);
     }
 
@@ -69,10 +75,7 @@ public class NewBehaviourScript : MonoBehaviour
 
         layoutTexture.DrawRectangle(roomCandidateRect, Color.blue);
         
-        foreach (Hallway hallway in openDoorways)
-        {
-            layoutTexture.SetPixel(hallway.StartPositionAbsolute.x, hallway.StartPositionAbsolute.y, hallway.StartDirection.GetColor() );
-        }
+        openDoorways.ForEach(hallway => layoutTexture.SetPixel(hallway.StartPositionAbsolute.x, hallway.StartPositionAbsolute.y, hallway.StartDirection.GetColor()));
         
         if (selectedEntryway != null) {
             layoutTexture.SetPixel(selectedEntryway.StartPositionAbsolute.x, selectedEntryway.StartPositionAbsolute.y, Color.red);
@@ -88,7 +91,31 @@ public class NewBehaviourScript : MonoBehaviour
         HallwayDirection requiredDirection = entryWay.StartDirection.GetOppositeDirection();
         List<Hallway> filteredHallwayCondidates = candidates.Where(hallwayCandidate => hallwayCandidate.StartDirection == requiredDirection).ToList();
         return filteredHallwayCondidates.Count > 0 ? filteredHallwayCondidates[random.Next(filteredHallwayCondidates.Count)] : null;
+    }
 
+    Vector2Int CalculateRoomPosition(Hallway entryway, int roomWidth, int roomLength, int distance, Vector2Int endPosition)
+    {
+        Vector2Int roomPosition = entryway.StartPositionAbsolute;
+        switch (entryway.StartDirection) 
+        {
+            case HallwayDirection.Left:
+                roomPosition.x -= distance + roomWidth;
+                roomPosition.y -= endPosition.y;
+                break;
+            case HallwayDirection.Top:
+                roomPosition.x -= endPosition.x;
+                roomPosition.y += distance + 1;
+                break;
+            case HallwayDirection.Right:
+                roomPosition.x += distance + 1;
+                roomPosition.y -= endPosition.y;
+                break;
+            case HallwayDirection.Bottom:
+                roomPosition.x -= endPosition.x;
+                roomPosition.y -= distance + roomLength;
+                break;
+        }
+        return roomPosition;
     }
 
 }
