@@ -517,8 +517,8 @@ MonoBehaviour:
   roomLengthMin: 3
   roomLengthMax: 5
   hallwayLengthMin: 3
-  hallwayLengthMax: 5
-  maxRoomCount: 10
+  hallwayLengthMax: 10
+  maxRoomCount: 15
   levelLayoutDisplay: {fileID: 928877761}
 --- !u!4 &1158956724
 Transform:
