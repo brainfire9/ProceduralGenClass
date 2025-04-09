@@ -15,6 +15,7 @@ public class NewBehaviourScript : MonoBehaviour
     [SerializeField] int roomLengthMax = 5;
     [SerializeField] int hallwayLengthMin = 3;
     [SerializeField] int hallwayLengthMax = 7;
+    [SerializeField] int maxRoomCount = 10;
     [SerializeField] GameObject levelLayoutDisplay;
     [SerializeField] List<Hallway> openDoorways;
     
@@ -35,9 +36,7 @@ public class NewBehaviourScript : MonoBehaviour
         level.AddRoom(room);
 
         Hallway selectedEntryway = openDoorways[random.Next(openDoorways.Count)];
-        Room secondRoom = ConstructAdjacentRoom(selectedEntryway); 
-        level.AddRoom(secondRoom);
-        level.AddHallway(selectedEntryway);
+        AddRooms();
         DrawLayout(selectedEntryway, roomRect);
     }
 
@@ -120,21 +119,90 @@ public class NewBehaviourScript : MonoBehaviour
             width = random.Next(roomWidthMin, roomWidthMax),
             height = random.Next(roomLengthMin, roomLengthMax)
         };
+
         Hallway selectedExit = SelectHallwayCandidate(roomCandidateRect, selectedEntryway);
         if (selectedExit == null) 
         {
             return null;
         }
         
-        int hallwayLength = random.Next(hallwayLengthMin, hallwayLengthMax);
+        int hallwayLength = random.Next(hallwayLengthMin, hallwayLengthMax + 1 );
         Vector2Int roomCandidatePosition = CalculateRoomPosition(selectedEntryway, roomCandidateRect.width, roomCandidateRect.height, hallwayLength, selectedExit.StartPosition);
         roomCandidateRect.position = roomCandidatePosition;
+
+        if (!IsRoomCandidateValid(roomCandidateRect))
+        {
+            return null;
+        }
+
         Room newroom = new Room(roomCandidateRect);
         selectedEntryway.EndRoom = newroom;
         selectedEntryway.EndPosition = selectedExit.StartPosition;
         return newroom;
     }
+    void AddRooms()
+    {
+        Debug.Log($"openDoorways.Count = {openDoorways.Count}, level.Rooms.Length = {level.Rooms.Length}");
+        while (openDoorways.Count > 0 && level.Rooms.Length < maxRoomCount)
+        {
+            Debug.Log("Adding room...");
+            Hallway selectedEntryway = openDoorways[random.Next(0, openDoorways.Count)];
+            Room newRoom = ConstructAdjacentRoom(selectedEntryway);
 
+            if (newRoom == null) {
+                Debug.Log("New room is null, discarding...");
+                openDoorways.Remove(selectedEntryway);
+                continue;
+            }
+
+            level.AddRoom(newRoom);
+            level.AddHallway(selectedEntryway);
+
+            selectedEntryway.EndRoom = newRoom;
+            List<Hallway> newOpenHallways = newRoom.CalculateAllPossibleDoorways(newRoom.Area.width, newRoom.Area.height, 1);
+            newOpenHallways.ForEach(hallway => hallway.StartRoom = newRoom);
+
+            openDoorways.Remove(selectedEntryway);
+            openDoorways.AddRange(newOpenHallways);
+        }
+    }
+
+    private bool IsRoomCandidateValid(RectInt roomCandidateRect)
+    {
+        int bufferSpace = 2;
+        RectInt levelRect = new RectInt(1, 1, width - bufferSpace, length - bufferSpace);
+        Debug.Log($"contains? {levelRect.Contains(roomCandidateRect)}");
+        Debug.Log($"overlap? {CheckRoomOverlap(roomCandidateRect, level.Rooms, level.Hallways, 1)}");
+        return levelRect.Contains(roomCandidateRect) && !CheckRoomOverlap(roomCandidateRect, level.Rooms, level.Hallways, 1);
+    } 
+
+    private bool CheckRoomOverlap(RectInt roomCandidateRect, Room[] rooms, Hallway[] hallways, int minRoomDistance)
+    {
+        RectInt paddedRoomRect = new RectInt 
+        {
+            x = roomCandidateRect.x - minRoomDistance,
+            y = roomCandidateRect.y - minRoomDistance,
+            width = roomCandidateRect.width + 2 * minRoomDistance,
+            height = roomCandidateRect.height + 2 * minRoomDistance
+        };
+        foreach (Room room in rooms)
+        {
+            if (paddedRoomRect.Overlaps(room.Area))
+            {
+                return true;
+            }
+        }
+        foreach (Hallway hallway in hallways)
+        {
+            if (paddedRoomRect.Overlaps(hallway.Area))
+            {
+                return true;
+            }
+        }
+        return false;
+        
+
+    }
 }
 
 

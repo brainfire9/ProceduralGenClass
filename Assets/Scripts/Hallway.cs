@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
@@ -47,6 +48,28 @@ public class Hallway
     {
         get => endPosition;
         set => endPosition = value;
+    }
+
+    public RectInt Area
+    {
+        get 
+        { 
+            int x = Mathf.Min(StartPositionAbsolute.x, EndPositionAbsolute.x);
+            int y = Mathf.Min(StartPositionAbsolute.y, EndPositionAbsolute.y);
+            int width = Mathf.Max(1, Math.Abs(StartPositionAbsolute.x - EndPositionAbsolute.x ) );
+            int height = Mathf.Max(1, Math.Abs(StartPositionAbsolute.y - EndPositionAbsolute.y ) );
+            if (StartPositionAbsolute.x == EndPositionAbsolute.x)
+            {
+                y++;
+                height--;
+            }
+            if (StartPositionAbsolute.y == EndPositionAbsolute.y)
+            {
+                x++;
+                width--;
+            }
+            return new RectInt(x, y, width, height);
+        }
     }
 
     public Hallway(HallwayDirection startDirection, Vector2Int startPosition, Room startRoom = null) 
