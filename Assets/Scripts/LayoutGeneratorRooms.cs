@@ -3,10 +3,12 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.VisualScripting;
+//using Unity.VisualScripting;
+using Random = System.Random;
 
 public class NewBehaviourScript : MonoBehaviour
 {
+    [SerializeField] int seed = Environment.TickCount;
     [SerializeField] int width = 64;
     [SerializeField] int length = 64;
     [SerializeField] int roomWidthMin = 3;
@@ -19,12 +21,12 @@ public class NewBehaviourScript : MonoBehaviour
     [SerializeField] GameObject levelLayoutDisplay;
     [SerializeField] List<Hallway> openDoorways;
     
-    System.Random random;
+    Random random;
     Level level;
 
     [ContextMenu("Generate Level Layout")]
     public void GenerateLevel() {
-        random = new System.Random();
+        random = new Random();
         openDoorways = new List<Hallway>();
         level = new Level(width, length);
         var roomRect = GetStartRoomRect();
@@ -40,6 +42,17 @@ public class NewBehaviourScript : MonoBehaviour
         DrawLayout(selectedEntryway, roomRect);
     }
 
+    [ContextMenu("Generate New Seed")]
+    public void GenerateNewSeed() {
+        seed = Environment.TickCount;
+
+    }
+
+    [ContextMenu("Generate New Seed And Level")]
+    public void GenerateNewSeedAndLeve() {
+        GenerateNewSeed();
+        GenerateLevel();
+    }
     RectInt GetStartRoomRect() {
         int roomWidth = random.Next(roomWidthMin, roomWidthMax);
         int availableWidthX = width / 2 - roomWidth;
