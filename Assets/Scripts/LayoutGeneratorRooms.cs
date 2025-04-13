@@ -9,15 +9,8 @@ using Random = System.Random;
 public class NewBehaviourScript : MonoBehaviour
 {
     [SerializeField] int seed = Environment.TickCount;
-    [SerializeField] int width = 64;
-    [SerializeField] int length = 64;
-    [SerializeField] int roomWidthMin = 3;
-    [SerializeField] int roomWidthMax = 5;
-    [SerializeField] int roomLengthMin = 3;
-    [SerializeField] int roomLengthMax = 5;
-    [SerializeField] int hallwayLengthMin = 3;
-    [SerializeField] int hallwayLengthMax = 7;
-    [SerializeField] int maxRoomCount = 10;
+    [SerializeField] RoomLevelLayoutConfiguration levelConfig;
+
     [SerializeField] GameObject levelLayoutDisplay;
     [SerializeField] List<Hallway> openDoorways;
     
@@ -26,13 +19,13 @@ public class NewBehaviourScript : MonoBehaviour
 
     [ContextMenu("Generate Level Layout")]
     public void GenerateLevel() {
-        random = new Random();
+        random = new Random(seed);
         openDoorways = new List<Hallway>();
-        level = new Level(width, length);
+        level = new Level(levelConfig.Width, levelConfig.Length);
         var roomRect = GetStartRoomRect();
         Debug.Log(roomRect);
         Room room = new Room(roomRect);
-        List<Hallway> hallways = room.CalculateAllPossibleDoorways(room.Area.width, room.Area.height, 1);
+        List<Hallway> hallways = room.CalculateAllPossibleDoorways(room.Area.width, room.Area.height, levelConfig.DoorDistanceFromEdge);
         hallways.ForEach(h => h.StartRoom = room);
         hallways.ForEach(h => openDoorways.Add(h));
         level.AddRoom(room);
@@ -54,37 +47,39 @@ public class NewBehaviourScript : MonoBehaviour
         GenerateLevel();
     }
     RectInt GetStartRoomRect() {
-        int roomWidth = random.Next(roomWidthMin, roomWidthMax);
-        int availableWidthX = width / 2 - roomWidth;
+        int roomWidth = random.Next(levelConfig.RoomWidthMin, levelConfig.RoomWidthMax);
+        int availableWidthX = levelConfig.Width / 2 - roomWidth;
         int randomX = random.Next(0, availableWidthX);
-        int roomX = randomX - (width/4);
+        int roomX = randomX - (levelConfig.Width/4);
 
-        int roomLength = random.Next(roomLengthMin, roomLengthMax);
-        int availableLengthY = length / 2 - roomLength;
+        int roomLength = random.Next(levelConfig.RoomLengthMin, levelConfig.RoomLengthMax);
+        int availableLengthY = levelConfig.Length / 2 - roomLength;
         int randomY = random.Next(0, availableLengthY);
-        int roomY = randomY + (length / 4);
+        int roomY = randomY + (levelConfig.Length / 4);
 
         return new RectInt(roomX, roomY, roomWidth, roomLength);
     }
 
-    void DrawLayout(Hallway selectedEntryway = null, RectInt roomCandidateRect = new RectInt() ) 
+    void DrawLayout(Hallway selectedEntryway = null, RectInt roomCandidateRect = new RectInt(), bool isDebug = false ) 
     {
         var renderer = levelLayoutDisplay.GetComponent<Renderer>();
         
         var layoutTexture = (Texture2D) renderer.sharedMaterial.mainTexture;
 
-        layoutTexture.Reinitialize(width, length);
-        levelLayoutDisplay.transform.localScale = new Vector3(width, length, 1);
+        layoutTexture.Reinitialize(levelConfig.Width, levelConfig.Length);
+        levelLayoutDisplay.transform.localScale = new Vector3(levelConfig.Width, levelConfig.Length, 1);
         layoutTexture.FillWithColor(Color.black);
 
         Array.ForEach(level.Rooms, room => layoutTexture.DrawRectangle(room.Area, Color.white)) ;
         Array.ForEach(level.Hallways, hallway => layoutTexture.DrawLine(hallway.StartPositionAbsolute,hallway.EndPositionAbsolute, Color.white)  );
 
-        layoutTexture.DrawRectangle(roomCandidateRect, Color.blue);
+        if (isDebug) {
+            layoutTexture.DrawRectangle(roomCandidateRect, Color.blue);
+            openDoorways.ForEach(hallway => layoutTexture.SetPixel(hallway.StartPositionAbsolute.x, hallway.StartPositionAbsolute.y, hallway.StartDirection.GetColor()));
+        }
         
-        openDoorways.ForEach(hallway => layoutTexture.SetPixel(hallway.StartPositionAbsolute.x, hallway.StartPositionAbsolute.y, hallway.StartDirection.GetColor()));
         
-        if (selectedEntryway != null) {
+        if (isDebug && selectedEntryway != null) {
             layoutTexture.SetPixel(selectedEntryway.StartPositionAbsolute.x, selectedEntryway.StartPositionAbsolute.y, Color.red);
         }
 
@@ -94,7 +89,7 @@ public class NewBehaviourScript : MonoBehaviour
     private Hallway SelectHallwayCandidate(RectInt roomCandidateRect, Hallway entryWay)
     {
         Room room = new Room(roomCandidateRect);
-        List<Hallway> candidates = room.CalculateAllPossibleDoorways(room.Area.width, room.Area.height, minDistanceFromEdge:1);
+        List<Hallway> candidates = room.CalculateAllPossibleDoorways(room.Area.width, room.Area.height, levelConfig.DoorDistanceFromEdge);
         HallwayDirection requiredDirection = entryWay.StartDirection.GetOppositeDirection();
         List<Hallway> filteredHallwayCondidates = candidates.Where(hallwayCandidate => hallwayCandidate.StartDirection == requiredDirection).ToList();
         return filteredHallwayCondidates.Count > 0 ? filteredHallwayCondidates[random.Next(filteredHallwayCondidates.Count)] : null;
@@ -129,8 +124,8 @@ public class NewBehaviourScript : MonoBehaviour
     {
         RectInt roomCandidateRect = new RectInt 
         {
-            width = random.Next(roomWidthMin, roomWidthMax),
-            height = random.Next(roomLengthMin, roomLengthMax)
+            width = random.Next(levelConfig.RoomWidthMin, levelConfig.RoomWidthMax),
+            height = random.Next(levelConfig.RoomLengthMin, levelConfig.RoomLengthMax)
         };
 
         Hallway selectedExit = SelectHallwayCandidate(roomCandidateRect, selectedEntryway);
@@ -139,7 +134,7 @@ public class NewBehaviourScript : MonoBehaviour
             return null;
         }
         
-        int hallwayLength = random.Next(hallwayLengthMin, hallwayLengthMax + 1 );
+        int hallwayLength = random.Next(levelConfig.HallwayLengthMin, levelConfig.HallwayLengthMax + 1 );
         Vector2Int roomCandidatePosition = CalculateRoomPosition(selectedEntryway, roomCandidateRect.width, roomCandidateRect.height, hallwayLength, selectedExit.StartPosition);
         roomCandidateRect.position = roomCandidatePosition;
 
@@ -156,7 +151,7 @@ public class NewBehaviourScript : MonoBehaviour
     void AddRooms()
     {
         Debug.Log($"openDoorways.Count = {openDoorways.Count}, level.Rooms.Length = {level.Rooms.Length}");
-        while (openDoorways.Count > 0 && level.Rooms.Length < maxRoomCount)
+        while (openDoorways.Count > 0 && level.Rooms.Length < levelConfig.MaxRoomCount)
         {
             Debug.Log("Adding room...");
             Hallway selectedEntryway = openDoorways[random.Next(0, openDoorways.Count)];
@@ -172,7 +167,7 @@ public class NewBehaviourScript : MonoBehaviour
             level.AddHallway(selectedEntryway);
 
             selectedEntryway.EndRoom = newRoom;
-            List<Hallway> newOpenHallways = newRoom.CalculateAllPossibleDoorways(newRoom.Area.width, newRoom.Area.height, 1);
+            List<Hallway> newOpenHallways = newRoom.CalculateAllPossibleDoorways(newRoom.Area.width, newRoom.Area.height, levelConfig.DoorDistanceFromEdge);
             newOpenHallways.ForEach(hallway => hallway.StartRoom = newRoom);
 
             openDoorways.Remove(selectedEntryway);
@@ -183,10 +178,10 @@ public class NewBehaviourScript : MonoBehaviour
     private bool IsRoomCandidateValid(RectInt roomCandidateRect)
     {
         int bufferSpace = 2;
-        RectInt levelRect = new RectInt(1, 1, width - bufferSpace, length - bufferSpace);
+        RectInt levelRect = new RectInt(1, 1, levelConfig.Width - bufferSpace, levelConfig.Length - bufferSpace);
         Debug.Log($"contains? {levelRect.Contains(roomCandidateRect)}");
         Debug.Log($"overlap? {CheckRoomOverlap(roomCandidateRect, level.Rooms, level.Hallways, 1)}");
-        return levelRect.Contains(roomCandidateRect) && !CheckRoomOverlap(roomCandidateRect, level.Rooms, level.Hallways, 1);
+        return levelRect.Contains(roomCandidateRect) && !CheckRoomOverlap(roomCandidateRect, level.Rooms, level.Hallways, levelConfig.MinRoomDistance);
     } 
 
     private bool CheckRoomOverlap(RectInt roomCandidateRect, Room[] rooms, Hallway[] hallways, int minRoomDistance)
